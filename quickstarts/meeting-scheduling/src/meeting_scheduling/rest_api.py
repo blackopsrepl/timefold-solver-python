@@ -10,6 +10,7 @@ from timefold.solver import SolverManager, SolutionManager
 from .domain import *
 from .demo_data import generate_demo_data
 from .solver import solver_manager, solution_manager
+from .score_analysis import ConstraintAnalysisDTO, MatchAnalysisDTO
 
 app = FastAPI(docs_url='/q/swagger-ui')
 
@@ -126,23 +127,28 @@ async def analyze_schedule(request: Request) -> Dict:
     
     analysis = solution_manager.analyze(schedule)
     
-    return {
-        "constraints": [
-            {
-                "name": constraint.constraint_name,
-                "weight": constraint.weight,
-                "score": constraint.score,
-                "matches": [
-                    {
-                        "name": match.constraint_ref.constraint_name,
-                        "score": match.score,
-                        "justification": match.justification
-                    }
-                    for match in constraint.matches
-                ]
-            }
-            for constraint in analysis.constraint_analyses
+    # Convert to proper DTOs for correct serialization
+    constraints = []
+    for constraint in analysis.constraint_analyses:
+        matches = [
+            MatchAnalysisDTO(
+                name=match.constraint_ref.constraint_name,
+                score=match.score,
+                justification=match.justification
+            )
+            for match in constraint.matches
         ]
+        
+        constraint_dto = ConstraintAnalysisDTO(
+            name=constraint.constraint_name,
+            weight=constraint.weight,
+            score=constraint.score,
+            matches=matches
+        )
+        constraints.append(constraint_dto)
+    
+    return {
+        "constraints": [constraint.model_dump() for constraint in constraints]
     }
 
 
