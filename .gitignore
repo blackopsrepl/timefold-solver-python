@@ -21,3 +21,4 @@ __pycache__
 
 # Repository wide ignore mac DS_Store files
 .DS_Store
+*.code-workspace
