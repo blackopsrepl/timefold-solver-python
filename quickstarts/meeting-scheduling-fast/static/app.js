@@ -108,6 +108,10 @@ function refreshSchedule() {
 
 
 function renderSchedule(schedule) {
+    console.log('Rendering schedule:', schedule);
+    console.log('Meeting assignments:', schedule.meetingAssignments);
+    console.log('Meetings:', schedule.meetings);
+    
     refreshSolvingButtons(schedule.solverStatus != null && schedule.solverStatus !== "NOT_SOLVING");
     $("#score").text("Score: " + (schedule.score == null ? "?" : schedule.score));
 
@@ -138,9 +142,23 @@ function renderScheduleByRoom(schedule) {
     schedule.meetings.forEach(m => meetingMap.set(m.id, m));
     const timeGrainMap = new Map();
     schedule.timeGrains.forEach(t => timeGrainMap.set(t.id, t));
+    const roomMap = new Map();
+    schedule.rooms.forEach(r => roomMap.set(r.id, r));
     $.each(schedule.meetingAssignments, (_, assignment) => {
-        const meet = meetingMap.get(assignment.meeting);
-        if (assignment.room == null || assignment.startingTimeGrain == null) {
+        // Handle both string ID and full object for meeting reference
+        const meet = typeof assignment.meeting === 'string' ? meetingMap.get(assignment.meeting) : assignment.meeting;
+        // Handle both string ID and full object for room reference
+        const room = typeof assignment.room === 'string' ? roomMap.get(assignment.room) : assignment.room;
+        // Handle both string ID and full object for timeGrain reference
+        const timeGrain = typeof assignment.startingTimeGrain === 'string' ? timeGrainMap.get(assignment.startingTimeGrain) : assignment.startingTimeGrain;
+        
+        // Skip if meeting is not found
+        if (!meet) {
+            console.warn(`Meeting not found for assignment ${assignment.id}`);
+            return;
+        }
+        
+        if (room == null || timeGrain == null) {
             const unassignedElement = $(`<div class="card-body"/>`)
                 .append($(`<h5 class="card-title mb-1"/>`).text(meet.topic))
                 .append($(`<p class="card-text ms-2 mb-0"/>`).text(`${(meet.durationInGrains * 15) / 60} hour(s)`));
@@ -148,7 +166,6 @@ function renderScheduleByRoom(schedule) {
             unassigned.append($(`<div class="pl-1"/>`).append($(`<div class="card"/>`).append(unassignedElement)));
         } else {
             const byRoomElement = $("<div />").append($("<div class='d-flex justify-content-center' />").append($(`<h5 class="card-title mb-1"/>`).text(meet.topic)));
-            const timeGrain = timeGrainMap.get(assignment.startingTimeGrain);
             const startDate = JSJoda.LocalDate.now().withDayOfYear(timeGrain.dayOfYear);
             const startTime = JSJoda.LocalTime.of(0, 0, 0, 0)
                 .plusMinutes(timeGrain.startingMinuteOfDay);
@@ -156,7 +173,7 @@ function renderScheduleByRoom(schedule) {
             const endDateTime = startTime.plusMinutes(meet.durationInGrains * 15);
             byRoomItemData.add({
                 id: assignment.id,
-                group: assignment.room,
+                group: typeof room === 'string' ? room : room.id,
                 content: byRoomElement.html(),
                 start: startDateTime.toString(),
                 end: endDateTime.toString(),
@@ -187,16 +204,29 @@ function renderScheduleByPerson(schedule) {
     schedule.meetings.forEach(m => meetingMap.set(m.id, m));
     const timeGrainMap = new Map();
     schedule.timeGrains.forEach(t => timeGrainMap.set(t.id, t));
+    const roomMap = new Map();
+    schedule.rooms.forEach(r => roomMap.set(r.id, r));
     $.each(schedule.meetingAssignments, (_, assignment) => {
-        const meet = meetingMap.get(assignment.meeting);
-        if (assignment.room == null || assignment.startingTimeGrain == null) {
+        // Handle both string ID and full object for meeting reference
+        const meet = typeof assignment.meeting === 'string' ? meetingMap.get(assignment.meeting) : assignment.meeting;
+        // Handle both string ID and full object for room reference
+        const room = typeof assignment.room === 'string' ? roomMap.get(assignment.room) : assignment.room;
+        // Handle both string ID and full object for timeGrain reference
+        const timeGrain = typeof assignment.startingTimeGrain === 'string' ? timeGrainMap.get(assignment.startingTimeGrain) : assignment.startingTimeGrain;
+        
+        // Skip if meeting is not found
+        if (!meet) {
+            console.warn(`Meeting not found for assignment ${assignment.id}`);
+            return;
+        }
+        
+        if (room == null || timeGrain == null) {
             const unassignedElement = $(`<div class="card-body"/>`)
                 .append($(`<h5 class="card-title mb-1"/>`).text(meet.topic))
                 .append($(`<p class="card-text ms-2 mb-0"/>`).text(`${(meet.durationInGrains * 15) / 60} hour(s)`));
 
             unassigned.append($(`<div class="pl-1"/>`).append($(`<div class="card"/>`).append(unassignedElement)));
         } else {
-            const timeGrain = timeGrainMap.get(assignment.startingTimeGrain);
             const startDate = JSJoda.LocalDate.now().withDayOfYear(timeGrain.dayOfYear);
             const startTime = JSJoda.LocalTime.of(0, 0, 0, 0)
                 .plusMinutes(timeGrain.startingMinuteOfDay);
