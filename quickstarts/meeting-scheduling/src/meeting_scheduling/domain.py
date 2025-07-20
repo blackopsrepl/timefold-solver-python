@@ -20,7 +20,11 @@ def make_people_validator():
             return None
         if not isinstance(v, str) or not info.context:
             return v
-        return info.context.get('people', {}).get(v, v)
+        people_lookup = info.context.get('people', {})
+        if v in people_lookup:
+            return people_lookup[v]
+        # If not found, return the original value (should be a Person object already)
+        return v
     return BeforeValidator(validator)
 
 def make_meeting_validator():
@@ -119,7 +123,7 @@ class Attendance(JsonDomainBase):
     """Abstract base class for attendance"""
     id: Annotated[str, PlanningId]
     person: Annotated[Person, IdSerializer, PeopleDeserializer]
-    meeting_id: str
+    meeting_id: str = Field(..., alias="meeting")
 
 class RequiredAttendance(Attendance):
     pass

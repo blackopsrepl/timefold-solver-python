@@ -87,19 +87,27 @@ async def solve_schedule(request: Request) -> str:
     json_data = await request.json()
     job_id = str(uuid4())
     
-    # Create lookup dictionaries for validation context
+    # Create lookup dictionaries for validation context - use the SAME instances
     people = {p['id']: Person.model_validate(p) for p in json_data.get('people', [])}
-    meetings = {m['id']: Meeting.model_validate(m) for m in json_data.get('meetings', [])}
     rooms = {r['id']: Room.model_validate(r) for r in json_data.get('rooms', [])}
     time_grains = {tg['id']: TimeGrain.model_validate(tg) for tg in json_data.get('timeGrains', [])}
     
-    # Parse the incoming JSON with proper context for deserialization
-    schedule = MeetingSchedule.model_validate(json_data, context={
+    # Create the full validation context
+    validation_context = {
         'people': people,
-        'meetings': meetings,
         'rooms': rooms,
         'timeGrains': time_grains
-    })
+    }
+    
+    # Validate meetings with proper context for person resolution
+    meetings = {m['id']: Meeting.model_validate(m, context=validation_context) for m in json_data.get('meetings', [])}
+    
+    # Add meetings to context for MeetingAssignment validation
+    validation_context['meetings'] = meetings
+    
+    # Parse the incoming JSON with proper context for deserialization
+    # Use the SAME people, rooms, time_grains instances to avoid duplicate objects
+    schedule = MeetingSchedule.model_validate(json_data, context=validation_context)
     
     data_sets[job_id] = schedule
     solver_manager.solve_and_listen(
@@ -117,17 +125,24 @@ async def analyze_schedule(request: Request) -> Dict:
     
     # Create lookup dictionaries for validation context
     people = {p['id']: Person.model_validate(p) for p in json_data.get('people', [])}
-    meetings = {m['id']: Meeting.model_validate(m) for m in json_data.get('meetings', [])}
     rooms = {r['id']: Room.model_validate(r) for r in json_data.get('rooms', [])}
     time_grains = {tg['id']: TimeGrain.model_validate(tg) for tg in json_data.get('timeGrains', [])}
     
-    # Parse the incoming JSON with proper context
-    schedule = MeetingSchedule.model_validate(json_data, context={
+    # Create the full validation context
+    validation_context = {
         'people': people,
-        'meetings': meetings,
         'rooms': rooms,
         'timeGrains': time_grains
-    })
+    }
+    
+    # Validate meetings with proper context for person resolution
+    meetings = {m['id']: Meeting.model_validate(m, context=validation_context) for m in json_data.get('meetings', [])}
+    
+    # Add meetings to context for MeetingAssignment validation
+    validation_context['meetings'] = meetings
+    
+    # Parse the incoming JSON with proper context
+    schedule = MeetingSchedule.model_validate(json_data, context=validation_context)
     
     analysis = solution_manager.analyze(schedule)
     
