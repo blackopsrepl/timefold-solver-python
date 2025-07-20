@@ -88,12 +88,14 @@ async def solve_schedule(request: Request) -> str:
     job_id = str(uuid4())
     
     # Create lookup dictionaries for validation context
+    people = {p['id']: Person.model_validate(p) for p in json_data.get('people', [])}
     meetings = {m['id']: Meeting.model_validate(m) for m in json_data.get('meetings', [])}
     rooms = {r['id']: Room.model_validate(r) for r in json_data.get('rooms', [])}
     time_grains = {tg['id']: TimeGrain.model_validate(tg) for tg in json_data.get('timeGrains', [])}
     
     # Parse the incoming JSON with proper context for deserialization
     schedule = MeetingSchedule.model_validate(json_data, context={
+        'people': people,
         'meetings': meetings,
         'rooms': rooms,
         'timeGrains': time_grains
@@ -114,12 +116,14 @@ async def analyze_schedule(request: Request) -> Dict:
     json_data = await request.json()
     
     # Create lookup dictionaries for validation context
+    people = {p['id']: Person.model_validate(p) for p in json_data.get('people', [])}
     meetings = {m['id']: Meeting.model_validate(m) for m in json_data.get('meetings', [])}
     rooms = {r['id']: Room.model_validate(r) for r in json_data.get('rooms', [])}
     time_grains = {tg['id']: TimeGrain.model_validate(tg) for tg in json_data.get('timeGrains', [])}
     
     # Parse the incoming JSON with proper context
     schedule = MeetingSchedule.model_validate(json_data, context={
+        'people': people,
         'meetings': meetings,
         'rooms': rooms,
         'timeGrains': time_grains

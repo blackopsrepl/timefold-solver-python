@@ -14,6 +14,15 @@ from pydantic.alias_generators import to_camel
 GRAIN_LENGTH_IN_MINUTES = 15
 
 # Serializers and validators for Pydantic
+def make_people_validator():
+    def validator(v: Any, info: ValidationInfo) -> Any:
+        if v is None:
+            return None
+        if not isinstance(v, str) or not info.context:
+            return v
+        return info.context.get('people', {}).get(v, v)
+    return BeforeValidator(validator)
+
 def make_meeting_validator():
     def validator(v: Any, info: ValidationInfo) -> Any:
         if v is None:
@@ -54,9 +63,10 @@ def validate_score(v: Any, info: ValidationInfo) -> Any:
 ScoreValidator = BeforeValidator(validate_score)
 
 # Validators for foreign key references
-MeetingValidator = make_meeting_validator()
-RoomValidator = make_room_validator()
-TimeGrainValidator = make_time_grain_validator()
+PeopleDeserializer = make_people_validator()
+MeetingDeserializer = make_meeting_validator()
+RoomDeserializer = make_room_validator()
+TimeGrainDeserializer = make_time_grain_validator()
 
 class JsonDomainBase(BaseModel):
     model_config = ConfigDict(
@@ -108,8 +118,8 @@ class Room(JsonDomainBase):
 class Attendance(JsonDomainBase):
     """Abstract base class for attendance"""
     id: Annotated[str, PlanningId]
-    person: Person
-    meeting_id: str = Field(..., alias="meeting")
+    person: Annotated[Person, IdSerializer, PeopleDeserializer]
+    meeting_id: str
 
 class RequiredAttendance(Attendance):
     pass
@@ -151,10 +161,10 @@ class Meeting(JsonDomainBase):
 @planning_entity
 class MeetingAssignment(JsonDomainBase):
     id: Annotated[str, PlanningId]
-    meeting: Annotated[Meeting, MeetingValidator, IdSerializer]
+    meeting: Annotated[Meeting, IdSerializer, MeetingDeserializer]
     pinned: Annotated[bool, PlanningPin] = False
-    starting_time_grain: Annotated[Optional[TimeGrain], PlanningVariable, TimeGrainValidator, IdSerializer] = None
-    room: Annotated[Optional[Room], PlanningVariable, RoomValidator, IdSerializer] = None
+    starting_time_grain: Annotated[Optional[TimeGrain], PlanningVariable, IdSerializer, TimeGrainDeserializer] = None
+    room: Annotated[Optional[Room], PlanningVariable, IdSerializer, RoomDeserializer] = None
 
     def get_grain_index(self) -> Optional[int]:
         if self.starting_time_grain is None:
