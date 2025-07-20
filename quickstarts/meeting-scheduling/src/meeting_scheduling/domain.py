@@ -14,13 +14,31 @@ from pydantic.alias_generators import to_camel
 GRAIN_LENGTH_IN_MINUTES = 15
 
 # Serializers and validators for Pydantic
-def make_id_item_validator(key: str):
+def make_meeting_validator():
     def validator(v: Any, info: ValidationInfo) -> Any:
         if v is None:
             return None
         if not isinstance(v, str) or not info.context:
             return v
-        return info.context.get(key, {}).get(v, v)
+        return info.context.get('meetings', {}).get(v, v)
+    return BeforeValidator(validator)
+
+def make_room_validator():
+    def validator(v: Any, info: ValidationInfo) -> Any:
+        if v is None:
+            return None
+        if not isinstance(v, str) or not info.context:
+            return v
+        return info.context.get('rooms', {}).get(v, v)
+    return BeforeValidator(validator)
+
+def make_time_grain_validator():
+    def validator(v: Any, info: ValidationInfo) -> Any:
+        if v is None:
+            return None
+        if not isinstance(v, str) or not info.context:
+            return v
+        return info.context.get('timeGrains', {}).get(v, v)
     return BeforeValidator(validator)
 
 IdSerializer = PlainSerializer(lambda item: item.id if item is not None else None, return_type=str | None)
@@ -36,9 +54,9 @@ def validate_score(v: Any, info: ValidationInfo) -> Any:
 ScoreValidator = BeforeValidator(validate_score)
 
 # Validators for foreign key references
-MeetingValidator = make_id_item_validator('meetings')
-RoomValidator = make_id_item_validator('rooms')
-TimeGrainValidator = make_id_item_validator('timeGrains')
+MeetingValidator = make_meeting_validator()
+RoomValidator = make_room_validator()
+TimeGrainValidator = make_time_grain_validator()
 
 class JsonDomainBase(BaseModel):
     model_config = ConfigDict(
